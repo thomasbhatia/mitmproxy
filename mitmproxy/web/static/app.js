@@ -481,7 +481,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.ToggleComponent = exports.Splitter = exports.Router = undefined;
+exports.ToggleComponent = exports.Splitter = undefined;
 
 var _react = require("react");
 
@@ -496,32 +496,6 @@ var _lodash = require("lodash");
 var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var Router = exports.Router = {
-    contextTypes: {
-        location: _react2.default.PropTypes.object,
-        router: _react2.default.PropTypes.object.isRequired
-    },
-    updateLocation: function updateLocation(pathname, queryUpdate) {
-        if (pathname === undefined) {
-            pathname = this.context.location.pathname;
-        }
-        var query = this.context.location.query;
-        if (queryUpdate !== undefined) {
-            for (var i in queryUpdate) {
-                if (queryUpdate.hasOwnProperty(i)) {
-                    query[i] = queryUpdate[i] || undefined; //falsey values shall be removed.
-                }
-            }
-        }
-        this.context.router.replace({ pathname: pathname, query: query });
-    },
-    getQuery: function getQuery() {
-        // For whatever reason, react-router always returns the same object, which makes comparing
-        // the current props with nextProps impossible. As a workaround, we just clone the query object.
-        return _lodash2.default.clone(this.context.location.query);
-    }
-};
 
 var Splitter = exports.Splitter = _react2.default.createClass({
     displayName: "Splitter",
@@ -931,8 +905,6 @@ var _shallowequal = require("shallowequal");
 
 var _shallowequal2 = _interopRequireDefault(_shallowequal);
 
-var _common = require("./common.js");
-
 var _actions = require("../actions.js");
 
 var _AutoScroll = require("./helpers/AutoScroll");
@@ -1120,8 +1092,6 @@ var AutoScrollEventLog = (0, _AutoScroll2.default)(EventLogContents);
 
 var EventLog = _react2.default.createClass({
     displayName: "EventLog",
-
-    mixins: [_common.Router],
     getInitialState: function getInitialState() {
         return {
             filter: {
@@ -1134,7 +1104,7 @@ var EventLog = _react2.default.createClass({
     close: function close() {
         var d = {};
         d[_actions.Query.SHOW_EVENTLOG] = undefined;
-        this.updateLocation(undefined, d);
+        this.props.updateLocation(undefined, d);
     },
     toggleLevel: function toggleLevel(level) {
         var filter = _lodash2.default.extend({}, this.state.filter);
@@ -1165,7 +1135,7 @@ var EventLog = _react2.default.createClass({
 
 exports.default = EventLog;
 
-},{"../actions.js":2,"../store/view.js":26,"./common.js":4,"./helpers/AutoScroll":16,"./helpers/VirtualScroll":17,"lodash":"lodash","react":"react","react-dom":"react-dom","shallowequal":"shallowequal"}],7:[function(require,module,exports){
+},{"../actions.js":2,"../store/view.js":26,"./helpers/AutoScroll":16,"./helpers/VirtualScroll":17,"lodash":"lodash","react":"react","react-dom":"react-dom","shallowequal":"shallowequal"}],7:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1749,13 +1719,17 @@ var _utils2 = require("../../utils.js");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var image_regex = /^image\/(png|jpe?g|gif|vnc.microsoft.icon|x-icon)$/i;
 var ViewImage = _react2.default.createClass({
     displayName: "ViewImage",
 
+    propTypes: {
+        flow: _react2.default.PropTypes.object.isRequired,
+        message: _react2.default.PropTypes.object.isRequired
+    },
     statics: {
+        regex: /^image\/(png|jpe?g|gif|vnc.microsoft.icon|x-icon)$/i,
         matches: function matches(message) {
-            return image_regex.test(_utils.MessageUtils.getContentType(message));
+            return ViewImage.regex.test(_utils.MessageUtils.getContentType(message));
         }
     },
     render: function render() {
@@ -1768,7 +1742,13 @@ var ViewImage = _react2.default.createClass({
     }
 });
 
-var RawMixin = {
+var ContentLoader = _react2.default.createClass({
+    displayName: "ContentLoader",
+
+    propTypes: {
+        flow: _react2.default.PropTypes.object.isRequired,
+        message: _react2.default.PropTypes.object.isRequired
+    },
     getInitialState: function getInitialState() {
         return {
             content: undefined,
@@ -1816,43 +1796,53 @@ var RawMixin = {
                 _react2.default.createElement("i", { className: "fa fa-spinner fa-spin" })
             );
         }
-        return this.renderContent();
+        return _react2.default.cloneElement(this.props.children, {
+            content: this.state.content
+        });
     }
-};
+});
 
 var ViewRaw = _react2.default.createClass({
     displayName: "ViewRaw",
 
-    mixins: [RawMixin],
+    propTypes: {
+        content: _react2.default.PropTypes.string.isRequired
+    },
     statics: {
+        textView: true,
         matches: function matches(message) {
             return true;
         }
     },
-    renderContent: function renderContent() {
+    render: function render() {
         return _react2.default.createElement(
             "pre",
             null,
-            this.state.content
+            this.props.content
         );
     }
 });
 
-var json_regex = /^application\/json$/i;
 var ViewJSON = _react2.default.createClass({
     displayName: "ViewJSON",
 
-    mixins: [RawMixin],
+    propTypes: {
+        content: _react2.default.PropTypes.string.isRequired
+    },
     statics: {
+        textView: true,
+        regex: /^application\/json$/i,
         matches: function matches(message) {
-            return json_regex.test(_utils.MessageUtils.getContentType(message));
+            return ViewJSON.regex.test(_utils.MessageUtils.getContentType(message));
         }
     },
-    renderContent: function renderContent() {
-        var json = this.state.content;
+    render: function render() {
+        var json = this.props.content;
         try {
             json = JSON.stringify(JSON.parse(json), null, 2);
-        } catch (e) {}
+        } catch (e) {
+            // @noop
+        }
         return _react2.default.createElement(
             "pre",
             null,
@@ -1864,6 +1854,10 @@ var ViewJSON = _react2.default.createClass({
 var ViewAuto = _react2.default.createClass({
     displayName: "ViewAuto",
 
+    propTypes: {
+        message: _react2.default.PropTypes.object.isRequired,
+        flow: _react2.default.PropTypes.object.isRequired
+    },
     statics: {
         matches: function matches() {
             return false; // don't match itself
@@ -1878,8 +1872,20 @@ var ViewAuto = _react2.default.createClass({
         }
     },
     render: function render() {
+        var _props = this.props;
+        var message = _props.message;
+        var flow = _props.flow;
+
         var View = ViewAuto.findView(this.props.message);
-        return _react2.default.createElement(View, this.props);
+        if (View.textView) {
+            return _react2.default.createElement(
+                ContentLoader,
+                { message: message, flow: flow },
+                _react2.default.createElement(View, { content: "" })
+            );
+        } else {
+            return _react2.default.createElement(View, { message: message, flow: flow });
+        }
     }
 });
 
@@ -2004,6 +2010,10 @@ var ContentView = _react2.default.createClass({
         }
     },
     render: function render() {
+        var _props2 = this.props;
+        var flow = _props2.flow;
+        var message = _props2.message;
+
         var message = this.props.message;
         if (message.contentLength === 0) {
             return _react2.default.createElement(ContentEmpty, this.props);
@@ -2018,7 +2028,11 @@ var ContentView = _react2.default.createClass({
         return _react2.default.createElement(
             "div",
             null,
-            _react2.default.createElement(this.state.View, this.props),
+            this.state.View.textView ? _react2.default.createElement(
+                ContentLoader,
+                { flow: flow, message: message },
+                _react2.default.createElement(this.state.View, { content: "" })
+            ) : _react2.default.createElement(this.state.View, { flow: flow, message: message }),
             _react2.default.createElement(
                 "div",
                 { className: "view-options text-center" },
@@ -2315,8 +2329,6 @@ var _react = require("react");
 
 var _react2 = _interopRequireDefault(_react);
 
-var _common = require("../common.js");
-
 var _nav = require("./nav.js");
 
 var _nav2 = _interopRequireDefault(_nav);
@@ -2343,7 +2355,6 @@ var allTabs = {
 var FlowView = _react2.default.createClass({
     displayName: "FlowView",
 
-    mixins: [_common.StickyHeadMixin, _common.Router],
     getInitialState: function getInitialState() {
         return {
             prompt: false
@@ -2367,7 +2378,7 @@ var FlowView = _react2.default.createClass({
         this.selectTab(tabs[nextIndex]);
     },
     selectTab: function selectTab(panel) {
-        this.updateLocation("/flows/" + this.props.flow.id + "/" + panel);
+        this.props.updateLocation("/flows/" + this.props.flow.id + "/" + panel);
     },
     promptEdit: function promptEdit() {
         var options;
@@ -2436,7 +2447,7 @@ var FlowView = _react2.default.createClass({
 
 exports.default = FlowView;
 
-},{"../common.js":4,"../prompt.js":19,"./details.js":10,"./messages.js":12,"./nav.js":13,"react":"react"}],12:[function(require,module,exports){
+},{"../prompt.js":19,"./details.js":10,"./messages.js":12,"./nav.js":13,"react":"react"}],12:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -3151,7 +3162,6 @@ var FilterInput = _react2.default.createClass({
 var MainMenu = exports.MainMenu = _react2.default.createClass({
     displayName: "MainMenu",
 
-    mixins: [_common.Router],
     propTypes: {
         settings: _react2.default.PropTypes.object.isRequired
     },
@@ -3162,19 +3172,19 @@ var MainMenu = exports.MainMenu = _react2.default.createClass({
     onSearchChange: function onSearchChange(val) {
         var d = {};
         d[_actions.Query.SEARCH] = val;
-        this.updateLocation(undefined, d);
+        this.props.updateLocation(undefined, d);
     },
     onHighlightChange: function onHighlightChange(val) {
         var d = {};
         d[_actions.Query.HIGHLIGHT] = val;
-        this.updateLocation(undefined, d);
+        this.props.updateLocation(undefined, d);
     },
     onInterceptChange: function onInterceptChange(val) {
         _actions.SettingsActions.update({ intercept: val });
     },
     render: function render() {
-        var search = this.getQuery()[_actions.Query.SEARCH] || "";
-        var highlight = this.getQuery()[_actions.Query.HIGHLIGHT] || "";
+        var search = this.props.query[_actions.Query.SEARCH] || "";
+        var highlight = this.props.query[_actions.Query.HIGHLIGHT] || "";
         var intercept = this.props.settings.intercept || "";
 
         return _react2.default.createElement(
@@ -3217,20 +3227,19 @@ var ViewMenu = _react2.default.createClass({
         title: "View",
         route: "flows"
     },
-    mixins: [_common.Router],
     toggleEventLog: function toggleEventLog() {
         var d = {};
-        if (this.getQuery()[_actions.Query.SHOW_EVENTLOG]) {
+        if (this.props.query[_actions.Query.SHOW_EVENTLOG]) {
             d[_actions.Query.SHOW_EVENTLOG] = undefined;
         } else {
             d[_actions.Query.SHOW_EVENTLOG] = "t"; // any non-false value will do it, keep it short
         }
 
-        this.updateLocation(undefined, d);
+        this.props.updateLocation(undefined, d);
         console.log('toggleevent');
     },
     render: function render() {
-        var showEventLog = this.getQuery()[_actions.Query.SHOW_EVENTLOG];
+        var showEventLog = this.props.query[_actions.Query.SHOW_EVENTLOG];
         return _react2.default.createElement(
             "div",
             null,
@@ -3370,6 +3379,26 @@ var FileMenu = _react2.default.createClass({
                         "New"
                     )
                 ),
+                _react2.default.createElement(
+                    "li",
+                    null,
+                    _react2.default.createElement(
+                        "a",
+                        { href: "#", onClick: this.handleOpenClick },
+                        _react2.default.createElement("i", { className: "fa fa-fw fa-folder-open" }),
+                        "Open..."
+                    )
+                ),
+                _react2.default.createElement(
+                    "li",
+                    null,
+                    _react2.default.createElement(
+                        "a",
+                        { href: "#", onClick: this.handleSaveClick },
+                        _react2.default.createElement("i", { className: "fa fa-fw fa-floppy-o" }),
+                        "Save..."
+                    )
+                ),
                 _react2.default.createElement("li", { role: "presentation", className: "divider" }),
                 _react2.default.createElement(
                     "li",
@@ -3391,7 +3420,6 @@ var header_entries = [MainMenu, ViewMenu, OptionMenu /*, ReportsMenu */];
 var Header = exports.Header = _react2.default.createClass({
     displayName: "Header",
 
-    mixins: [_common.Router],
     propTypes: {
         settings: _react2.default.PropTypes.object.isRequired
     },
@@ -3402,7 +3430,7 @@ var Header = exports.Header = _react2.default.createClass({
     },
     handleClick: function handleClick(active, e) {
         e.preventDefault();
-        this.updateLocation(active.route);
+        this.props.updateLocation(active.route);
         this.setState({ active: active });
     },
     render: function render() {
@@ -3435,7 +3463,12 @@ var Header = exports.Header = _react2.default.createClass({
             _react2.default.createElement(
                 "div",
                 { className: "menu" },
-                _react2.default.createElement(this.state.active, { ref: "active", settings: this.props.settings })
+                _react2.default.createElement(this.state.active, {
+                    ref: "active",
+                    settings: this.props.settings,
+                    updateLocation: this.props.updateLocation,
+                    query: this.props.query
+                })
             )
         );
     }
@@ -3622,7 +3655,6 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var MainView = _react2.default.createClass({
     displayName: "MainView",
 
-    mixins: [_common.Router],
     contextTypes: {
         flowStore: _react2.default.PropTypes.object.isRequired
     },
@@ -3653,11 +3685,11 @@ var MainView = _react2.default.createClass({
     },
     getViewFilt: function getViewFilt() {
         try {
-            var filtStr = this.getQuery()[_actions.Query.SEARCH];
+            var filtStr = this.props.query[_actions.Query.SEARCH];
             var filt = filtStr ? _filt2.default.parse(filtStr) : function () {
                 return true;
             };
-            var highlightStr = this.getQuery()[_actions.Query.HIGHLIGHT];
+            var highlightStr = this.props.query[_actions.Query.HIGHLIGHT];
             var highlight = highlightStr ? _filt2.default.parse(highlightStr) : function () {
                 return false;
             };
@@ -3710,10 +3742,10 @@ var MainView = _react2.default.createClass({
     selectFlow: function selectFlow(flow) {
         if (flow) {
             var tab = this.props.routeParams.detailTab || "request";
-            this.updateLocation("/flows/" + flow.id + "/" + tab);
+            this.props.updateLocation("/flows/" + flow.id + "/" + tab);
             this.refs.flowTable.scrollIntoView(flow);
         } else {
-            this.updateLocation("/flows");
+            this.props.updateLocation("/flows");
         }
     },
     selectFlowRelative: function selectFlowRelative(shift) {
@@ -3837,6 +3869,8 @@ var MainView = _react2.default.createClass({
                 key: "flowDetails",
                 ref: "flowDetails",
                 tab: this.props.routeParams.detailTab,
+                query: this.props.query,
+                updateLocation: this.props.updateLocation,
                 flow: selected })];
         } else {
             details = null;
@@ -4054,12 +4088,33 @@ var Reports = _react2.default.createClass({
 var ProxyAppMain = _react2.default.createClass({
     displayName: "ProxyAppMain",
 
-    mixins: [_common.Router],
     childContextTypes: {
         flowStore: _react2.default.PropTypes.object.isRequired,
         eventStore: _react2.default.PropTypes.object.isRequired,
         returnFocus: _react2.default.PropTypes.func.isRequired,
         location: _react2.default.PropTypes.object.isRequired
+    },
+    contextTypes: {
+        router: _react2.default.PropTypes.object.isRequired
+    },
+    updateLocation: function updateLocation(pathname, queryUpdate) {
+        if (pathname === undefined) {
+            pathname = this.props.location.pathname;
+        }
+        var query = this.props.location.query;
+        if (queryUpdate !== undefined) {
+            for (var i in queryUpdate) {
+                if (queryUpdate.hasOwnProperty(i)) {
+                    query[i] = queryUpdate[i] || undefined; //falsey values shall be removed.
+                }
+            }
+        }
+        this.context.router.replace({ pathname: pathname, query: query });
+    },
+    getQuery: function getQuery() {
+        // For whatever reason, react-router always returns the same object, which makes comparing
+        // the current props with nextProps impossible. As a workaround, we just clone the query object.
+        return _lodash2.default.clone(this.props.location.query);
     },
     componentDidMount: function componentDidMount() {
         this.focus();
@@ -4130,18 +4185,18 @@ var ProxyAppMain = _react2.default.createClass({
         e.preventDefault();
     },
     render: function render() {
+        var query = this.getQuery();
         var eventlog;
         if (this.props.location.query[_actions.Query.SHOW_EVENTLOG]) {
-            eventlog = [_react2.default.createElement(_common.Splitter, { key: "splitter", axis: "y" }), _react2.default.createElement(_eventlog2.default, { key: "eventlog" })];
+            eventlog = [_react2.default.createElement(_common.Splitter, { key: "splitter", axis: "y" }), _react2.default.createElement(_eventlog2.default, { key: "eventlog", updateLocation: this.updateLocation })];
         } else {
             eventlog = null;
         }
-        var children = _react2.default.cloneElement(this.props.children, { ref: "view", location: this.props.location });
         return _react2.default.createElement(
             "div",
             { id: "container", tabIndex: "0", onKeyDown: this.onKeydown },
-            _react2.default.createElement(_header.Header, { ref: "header", settings: this.state.settings }),
-            children,
+            _react2.default.createElement(_header.Header, { ref: "header", settings: this.state.settings, updateLocation: this.updateLocation, query: query }),
+            _react2.default.cloneElement(this.props.children, { ref: "view", location: this.props.location, updateLocation: this.updateLocation, query: query }),
             eventlog,
             _react2.default.createElement(_footer2.default, { settings: this.state.settings })
         );
